@@ -35,7 +35,7 @@ WORKDIR /app
 COPY bundle/ /tmp/bundle/
 COPY frontend_override/ /tmp/frontend_override/
 COPY runtime_patch/ /tmp/runtime_patch/
-RUN python -c 'import base64,glob,pathlib; d="".join(pathlib.Path(p).read_text() for p in sorted(glob.glob("/tmp/bundle/part*.txt"))); pathlib.Path("/tmp/source.tar.gz").write_bytes(base64.b64decode(d))' \
+RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
     && cp -a /tmp/frontend_override/. /app/frontend/ \
