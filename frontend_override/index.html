@@ -1,58 +1,91 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>YouTube Downloader</title>
-  <meta name="description" content="YouTube Downloader">
-  <meta name="robots" content="index,follow">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>YouTube Downloader - MP3, WAV & MP4</title>
+  <meta name="description" content="YouTube downloader for MP3, WAV and H.264/AAC MP4 video.">
+  <link rel="canonical" href="__PUBLIC_BASE_URL__/">
+  <meta property="og:title" content="YouTube Downloader">
+  <meta property="og:description" content="Download one YouTube video as MP3, WAV or MP4.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="__PUBLIC_BASE_URL__/">
+  <meta name="theme-color" content="#041518">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">YouTube Downloader</div>
-    </div>
-  </header>
+  <main class="page-shell">
+    <section class="tool-card" aria-labelledby="brand-title">
+      <header class="brand-row">
+        <a class="brand" href="/" aria-label="YouTube Downloader home">
+          <span class="brand-mark" aria-hidden="true">▷</span>
+          <span id="brand-title">YouTube Downloader</span>
+        </a>
+      </header>
 
-  <main class="page">
-    <section class="downloader" aria-label="YouTube Downloader">
-      <form id="download-form" novalidate>
-        <div class="url-wrap">
-          <input id="url" class="url-input" name="url" type="url" inputmode="url" autocomplete="off" placeholder="YouTube URL" aria-label="YouTube URL" required>
+      <form id="download-form" class="url-form restored-flow" novalidate>
+        <label for="youtube-url">YouTube URL</label>
+        <div class="input-row input-row-single">
+          <input id="youtube-url" name="url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.youtube.com/watch?v=…" required>
         </div>
 
-        <div class="selector-block">
-          <div class="formats" aria-label="Формат">
+        <section id="format-section" class="format-section restored-format" aria-labelledby="format-title">
+          <h2 id="format-title" class="section-label">Format</h2>
+          <div class="segmented" role="radiogroup" aria-label="Output format">
             <input class="choice-radio" id="format-mp3" name="format" type="radio" value="mp3" checked>
-            <label class="choice" for="format-mp3">MP3</label>
+            <label class="segment" for="format-mp3">MP3</label>
             <input class="choice-radio" id="format-wav" name="format" type="radio" value="wav">
-            <label class="choice" for="format-wav">WAV</label>
+            <label class="segment" for="format-wav">WAV</label>
             <input class="choice-radio" id="format-video" name="format" type="radio" value="video">
-            <label class="choice" for="format-video">VIDEO</label>
+            <label class="segment" for="format-video">VIDEO</label>
           </div>
 
-          <div id="qualities" class="qualities" aria-label="Разрешение видео" hidden>
-            <input class="choice-radio" id="quality-low" name="quality" type="radio" value="low">
-            <label class="choice quality-choice" for="quality-low">480p</label>
-            <input class="choice-radio" id="quality-medium" name="quality" type="radio" value="medium">
-            <label class="choice quality-choice" for="quality-medium">720p</label>
-            <input class="choice-radio" id="quality-maximum" name="quality" type="radio" value="maximum" checked>
-            <label class="choice quality-choice" for="quality-maximum">MAX</label>
+          <div id="quality-wrap" class="quality-wrap" hidden>
+            <span class="section-label">Video quality</span>
+            <div class="quality-grid" role="radiogroup" aria-label="Video quality">
+              <input class="choice-radio" id="quality-low" name="quality" type="radio" value="low">
+              <label class="quality" for="quality-low"><strong>480p</strong></label>
+              <input class="choice-radio" id="quality-medium" name="quality" type="radio" value="medium">
+              <label class="quality" for="quality-medium"><strong>720p</strong></label>
+              <input class="choice-radio" id="quality-maximum" name="quality" type="radio" value="maximum" checked>
+              <label class="quality" for="quality-maximum"><strong>Maximum</strong></label>
+            </div>
           </div>
-        </div>
 
-        <button id="download" class="download" type="submit">Скачать</button>
+          <button id="download-start" class="button button-primary download-cta" type="submit">Download</button>
+        </section>
       </form>
 
-      <div class="message-area">
-        <p id="status" class="status" aria-live="polite" hidden></p>
-        <p id="error" class="error" role="alert" hidden></p>
-      </div>
-    </section>
-  </main>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
-  <footer>Скачивайте только то, что можно. Этот софт ничего не гарантирует.</footer>
+      <section id="progress-card" class="progress-card" aria-live="polite" hidden>
+        <div class="progress-head">
+          <div>
+            <span id="state-label" class="eyebrow">Queued</span>
+            <h2 id="stage-label">Waiting for a worker</h2>
+          </div>
+          <span id="progress-number" class="progress-number"></span>
+        </div>
+        <div id="progress-track" class="progress-track" hidden><div id="progress-bar" class="progress-bar"></div></div>
+        <p id="queue-copy" class="microcopy"></p>
+      </section>
+
+      <section id="ready-card" class="ready-card restored-ready" hidden>
+        <span class="ready-icon" aria-hidden="true">✓</span>
+        <div class="ready-copy">
+          <span class="eyebrow">Ready</span>
+          <h2 id="ready-name">Your file is ready</h2>
+          <p id="ready-size" class="microcopy"></p>
+        </div>
+      </section>
+    </section>
+
+    <footer class="site-footer">
+      <p>Download only content you're allowed to download. This software makes no guarantees.</p>
+      <nav aria-label="Legal"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright / Contact</a></nav>
+    </footer>
+  </main>
   <script src="/assets/app.js" defer></script>
 </body>
 </html>
