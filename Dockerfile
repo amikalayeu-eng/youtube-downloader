@@ -31,6 +31,9 @@ COPY bundle/ /tmp/bundle/
 RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
+    && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
+    && sed -i 's/"processing_time", "process", "exit_status"/"processing_time", "process_name", "exit_status"/g' /app/app/logging_json.py \
+    && python -m compileall -q /app/app \
     && pip install --upgrade pip \
     && pip install -r requirements.txt \
     && mkdir -p /tmp/audioera-jobs \
