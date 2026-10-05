@@ -35,12 +35,12 @@ WORKDIR /app
 COPY bundle/ /tmp/bundle/
 COPY frontend_override/ /tmp/frontend_override/
 COPY runtime_patch/ /tmp/runtime_patch/
-RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
+RUN python -c 'import base64,glob,pathlib; d="".join(pathlib.Path(p).read_text() for p in sorted(glob.glob("/tmp/bundle/part*.txt"))); pathlib.Path("/tmp/source.tar.gz").write_bytes(base64.b64decode(d))' \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
     && cp -a /tmp/frontend_override/. /app/frontend/ \
     && rm -rf /tmp/frontend_override \
-    && cat /tmp/runtime_patch/part*.txt | base64 -d > /tmp/runtime_patch.tar.gz \
+    && python -c 'import base64,glob,pathlib; d="".join(pathlib.Path(p).read_text() for p in sorted(glob.glob("/tmp/runtime_patch/part*.txt"))); pathlib.Path("/tmp/runtime_patch.tar.gz").write_bytes(base64.b64decode(d))' \
     && echo "1d4f7e7eaee3bf9a9143b9ef226a79c4a8051d68fd28ff728300e87c07fac59b  /tmp/runtime_patch.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/runtime_patch.tar.gz -C /app \
     && rm -rf /tmp/runtime_patch /tmp/runtime_patch.tar.gz \
