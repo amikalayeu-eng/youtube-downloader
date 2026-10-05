@@ -41,11 +41,9 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && cp -a /tmp/frontend_override/. /app/frontend/ \
     && rm -rf /tmp/frontend_override \
     && python -c 'import base64,glob,pathlib; d="".join(pathlib.Path(p).read_text() for p in sorted(glob.glob("/tmp/runtime_patch/part*.txt"))); pathlib.Path("/tmp/runtime_patch.tar.gz").write_bytes(base64.b64decode(d))' \
-    && echo "1d4f7e7eaee3bf9a9143b9ef226a79c4a8051d68fd28ff728300e87c07fac59b  /tmp/runtime_patch.tar.gz" | sha256sum -c - \
+    && echo "a24e675c2340d21e33c57bb0acb5cd22b1ee012c82aa167b0428ebc0b7797ff0  /tmp/runtime_patch.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/runtime_patch.tar.gz -C /app \
     && rm -rf /tmp/runtime_patch /tmp/runtime_patch.tar.gz \
-    && python -c 'from pathlib import Path; p=Path("/app/app/downloader.py"); s=p.read_text(); old="    if usage.total and int((usage.used / usage.total) * 100) >= settings.disk_high_watermark_percent:\n        raise DownloadError(\"Temporary storage is near capacity. Try again later.\")\n"; assert old in s; p.write_text(s.replace(old, ""))' \
-    && python -c 'from pathlib import Path; p=Path("/app/app/api.py"); s=p.read_text(); old="    percent = int((usage.used / usage.total) * 100) if usage.total else 100\n    if percent >= settings.disk_high_watermark_percent:\n        raise HTTPException(503, \"Temporary storage is near capacity. Try again later.\")\n"; new="    if usage.free < settings.disk_reserve_bytes:\n        raise HTTPException(503, \"Temporary storage is near capacity. Try again later.\")\n"; assert old in s; p.write_text(s.replace(old,new))' \
     && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
