@@ -33,9 +33,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && /usr/local/bin/yt-dlp --version
 WORKDIR /app
 COPY bundle/ /tmp/bundle/
+COPY frontend_override/ /tmp/frontend_override/
 RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
+    && cp -a /tmp/frontend_override/. /app/frontend/ \
+    && rm -rf /tmp/frontend_override \
+    && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
     && python -c 'from pathlib import Path; p=Path("/app/app/downloader.py"); s=p.read_text(); old="    if settings.yt_dlp_extractor_args:\n        args += [\"--extractor-args\", settings.yt_dlp_extractor_args]\n"; new="    if settings.yt_dlp_extractor_args:\n        for extractor_arg in settings.yt_dlp_extractor_args.split(\"||\"):\n            extractor_arg = extractor_arg.strip()\n            if extractor_arg:\n                args += [\"--extractor-args\", extractor_arg]\n"; assert old in s; p.write_text(s.replace(old,new))' \
