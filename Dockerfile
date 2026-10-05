@@ -32,6 +32,7 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
+    && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
     && sed -i 's/"processing_time", "process", "exit_status"/"processing_time", "process_name", "exit_status"/g' /app/app/logging_json.py \
     && sed -i '/^import signal$/a import socket' /app/app/worker_runner.py \
     && sed -i 's/name=f"{queue_name}-{os.getpid()}"/name=f"{queue_name}-{socket.gethostname()}-{os.getpid()}"/g' /app/app/worker_runner.py \
