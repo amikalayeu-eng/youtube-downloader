@@ -34,11 +34,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY bundle/ /tmp/bundle/
 COPY frontend_override/ /tmp/frontend_override/
+COPY runtime_patch.b64 /tmp/runtime_patch.b64
 RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
     && cp -a /tmp/frontend_override/. /app/frontend/ \
     && rm -rf /tmp/frontend_override \
+    && echo "1d4f7e7eaee3bf9a9143b9ef226a79c4a8051d68fd28ff728300e87c07fac59b  /tmp/runtime_patch.tar.gz" > /tmp/runtime_patch.sha256 \
+    && base64 -d /tmp/runtime_patch.b64 > /tmp/runtime_patch.tar.gz \
+    && sha256sum -c /tmp/runtime_patch.sha256 \
+    && tar -xzf /tmp/runtime_patch.tar.gz -C /app \
+    && rm -f /tmp/runtime_patch.b64 /tmp/runtime_patch.tar.gz /tmp/runtime_patch.sha256 \
     && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
