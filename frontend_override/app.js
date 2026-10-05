@@ -6,10 +6,11 @@
   const statusEl=$('status');
   const errorEl=$('error');
   const qualities=$('qualities');
-
-  let selectedFormat='mp3';
-  let selectedQuality='maximum';
   let busy=false;
+
+  function selected(name){
+    return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
+  }
 
   function clearMessage(){
     errorEl.hidden=true;
@@ -33,7 +34,7 @@
     busy=value;
     downloadButton.disabled=value;
     urlInput.disabled=value;
-    document.querySelectorAll('.choice').forEach(el=>el.disabled=value);
+    document.querySelectorAll('.choice-radio').forEach(el=>el.disabled=value);
     downloadButton.textContent=value?'Скачиваем...':'Скачать';
   }
 
@@ -74,28 +75,9 @@
     }
   }
 
-  document.querySelectorAll('[data-format]').forEach(button=>{
-    button.addEventListener('click',()=>{
-      if(busy) return;
-      selectedFormat=button.dataset.format;
-      document.querySelectorAll('[data-format]').forEach(el=>{
-        const active=el===button;
-        el.classList.toggle('selected',active);
-        el.setAttribute('aria-checked',String(active));
-      });
-      qualities.hidden=selectedFormat!=='video';
-    });
-  });
-
-  document.querySelectorAll('[data-quality]').forEach(button=>{
-    button.addEventListener('click',()=>{
-      if(busy) return;
-      selectedQuality=button.dataset.quality;
-      document.querySelectorAll('[data-quality]').forEach(el=>{
-        const active=el===button;
-        el.classList.toggle('selected',active);
-        el.setAttribute('aria-checked',String(active));
-      });
+  document.querySelectorAll('input[name="format"]').forEach(input=>{
+    input.addEventListener('change',()=>{
+      qualities.hidden=selected('format')!=='video';
     });
   });
 
@@ -110,6 +92,9 @@
       return;
     }
 
+    const format=selected('format') || 'mp3';
+    const quality=format==='video'?(selected('quality')||'maximum'):'maximum';
+
     setBusy(true);
     showStatus('Анализ...');
 
@@ -123,11 +108,7 @@
       showStatus('Подготовка...');
       const jobCreated=await api('/api/jobs',{
         method:'POST',
-        body:JSON.stringify({
-          analysis_id:analysisCreated.id,
-          format:selectedFormat,
-          quality:selectedFormat==='video'?selectedQuality:'maximum'
-        })
+        body:JSON.stringify({analysis_id:analysisCreated.id,format,quality})
       });
 
       const ready=await pollJob(jobCreated.id);
