@@ -27,10 +27,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && /usr/local/bin/deno --version \
     && /usr/local/bin/yt-dlp --version
 WORKDIR /app
-COPY source.tar.gz.b64 /tmp/source.tar.gz.b64
-RUN base64 -d /tmp/source.tar.gz.b64 > /tmp/source.tar.gz \
+COPY bundle/ /tmp/bundle/
+RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
-    && rm -f /tmp/source.tar.gz /tmp/source.tar.gz.b64 \
+    && rm -rf /tmp/source.tar.gz /tmp/bundle \
     && pip install --upgrade pip \
     && pip install -r requirements.txt \
     && mkdir -p /tmp/audioera-jobs \
