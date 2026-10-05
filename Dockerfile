@@ -23,11 +23,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && sha256sum -c "${DENO_ASSET}.sha256sum" \
     && unzip -q "${DENO_ASSET}" -d /usr/local/bin \
     && chmod 0755 /usr/local/bin/deno \
-    && rm -f "${DENO_ASSET}" "${DENO_ASSET}.sha256sum"
+    && rm -f "${DENO_ASSET}" "${DENO_ASSET}.sha256sum" \
+    && /usr/local/bin/deno --version \
+    && /usr/local/bin/yt-dlp --version
 WORKDIR /app
-COPY source.tar.gz /tmp/audioera-source.tar.gz
-RUN tar -xzf /tmp/audioera-source.tar.gz -C /app \
-    && rm -f /tmp/audioera-source.tar.gz \
+COPY source.tar.gz /tmp/source.tar.gz
+RUN tar -xzf /tmp/source.tar.gz -C /app \
+    && rm -f /tmp/source.tar.gz \
     && pip install --upgrade pip \
     && pip install -r requirements.txt \
     && mkdir -p /tmp/audioera-jobs \
