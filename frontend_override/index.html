@@ -14,18 +14,24 @@
       <h1 id="page-title">YouTube Downloader</h1>
 
       <form id="download-form" novalidate>
-        <input id="url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="YouTube URL" aria-label="YouTube URL" required>
+        <input id="url" class="url-input" name="url" type="url" inputmode="url" autocomplete="off" placeholder="YouTube URL" aria-label="YouTube URL" required>
 
-        <div class="formats" role="radiogroup" aria-label="Формат">
-          <button class="choice selected" data-format="mp3" type="button" role="radio" aria-checked="true">MP3</button>
-          <button class="choice" data-format="wav" type="button" role="radio" aria-checked="false">WAV</button>
-          <button class="choice" data-format="video" type="button" role="radio" aria-checked="false">VIDEO</button>
+        <div class="formats" aria-label="Формат">
+          <input class="choice-radio" id="format-mp3" name="format" type="radio" value="mp3" checked>
+          <label class="choice" for="format-mp3">MP3</label>
+          <input class="choice-radio" id="format-wav" name="format" type="radio" value="wav">
+          <label class="choice" for="format-wav">WAV</label>
+          <input class="choice-radio" id="format-video" name="format" type="radio" value="video">
+          <label class="choice" for="format-video">VIDEO</label>
         </div>
 
-        <div id="qualities" class="qualities" role="radiogroup" aria-label="Разрешение видео" hidden>
-          <button class="choice" data-quality="low" type="button" role="radio" aria-checked="false">480p</button>
-          <button class="choice" data-quality="medium" type="button" role="radio" aria-checked="false">720p</button>
-          <button class="choice selected" data-quality="maximum" type="button" role="radio" aria-checked="true">MAX</button>
+        <div id="qualities" class="qualities" aria-label="Разрешение видео" hidden>
+          <input class="choice-radio" id="quality-low" name="quality" type="radio" value="low">
+          <label class="choice" for="quality-low">480p</label>
+          <input class="choice-radio" id="quality-medium" name="quality" type="radio" value="medium">
+          <label class="choice" for="quality-medium">720p</label>
+          <input class="choice-radio" id="quality-maximum" name="quality" type="radio" value="maximum" checked>
+          <label class="choice" for="quality-maximum">MAX</label>
         </div>
 
         <button id="download" class="download" type="submit">Скачать</button>
