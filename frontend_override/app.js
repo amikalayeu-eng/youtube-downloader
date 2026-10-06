@@ -100,7 +100,7 @@ form.addEventListener('submit',async e=>{
 
   setBusy(true);progressCard.hidden=false;renderProgress({status:'queued'});event('download_start',{format,quality:format==='video'?quality:''});
   try{
-    const job=await api('/api/download',{method:'POST',body:JSON.stringify({url,format,quality})});
+    const job=await api('/api/fast-download',{method:'POST',body:JSON.stringify({url,format,quality})});
     jobId=job.id;
     const ready=await waitForJob(jobId);
     if(cancelledByUser)return;
