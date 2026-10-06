@@ -17,8 +17,13 @@ function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function renderProgress(data){
   const status=data.status||'queued';
   const raw=String(data.progress??'').trim(),pct=Number(raw),real=raw!==''&&Number.isFinite(pct)&&pct>=0&&pct<=100;
-  $('state-label').textContent=real?'Downloading':(status==='queued'?'Queued':'Preparing');
-  $('stage-label').textContent=real?'Downloading':(status==='queued'?'Waiting for a worker':'Preparing download');
+  const stage=String(data.stage||'');
+  let label='Finishing';
+  if(status==='queued')label='Starting';
+  else if(real)label='Downloading';
+  else if(stage==='Saving')label='Saving';
+  $('state-label').textContent=label;
+  $('stage-label').textContent=label;
   $('progress-track').hidden=!real;
   $('progress-number').textContent=real?`${pct.toFixed(pct<10?1:0)}%`:'';
   $('progress-bar').style.width=real?`${pct}%`:'0%';
@@ -33,7 +38,7 @@ async function waitForJob(id){
     if(data.status==='failed')throw new Error(data.error||'The download failed.');
     if(data.status==='cancelled')throw new Error('Download cancelled.');
     renderProgress(data);
-    await sleep(900);
+    await sleep(700);
   }
 }
 
@@ -56,7 +61,7 @@ async function saveToChosenDirectory(ready){
         if(done)break;
         await writable.write(value);
         received+=value.byteLength;
-        if(total>0){const pct=Math.min(100,received/total*100);$('state-label').textContent='Saving';$('stage-label').textContent='Saving to computer';$('progress-track').hidden=false;$('progress-number').textContent=`${pct.toFixed(0)}%`;$('progress-bar').style.width=`${pct}%`;}
+        if(total>0){const pct=Math.min(100,received/total*100);$('state-label').textContent='Saving';$('stage-label').textContent='Saving';$('progress-track').hidden=false;$('progress-number').textContent=`${pct.toFixed(0)}%`;$('progress-bar').style.width=`${pct}%`;}
       }
     }else{
       await writable.write(await response.blob());
@@ -65,12 +70,19 @@ async function saveToChosenDirectory(ready){
   }catch(err){try{await writable.abort();}catch{}throw err;}
 }
 
+function downloadUrl(){return `/api/jobs/${encodeURIComponent(jobId)}/file?download=1&t=${Date.now()}`;}
 function startNativeDownload(){
   const frame=document.createElement('iframe');
   frame.hidden=true;
-  frame.src=`/api/jobs/${encodeURIComponent(jobId)}/file?download=1&t=${Date.now()}`;
+  frame.src=downloadUrl();
   document.body.appendChild(frame);
   setTimeout(()=>frame.remove(),60000);
+}
+function showSaveFallback(ready){
+  const link=$('ready-save');
+  link.href=downloadUrl();
+  link.download=ready.file_name||'download';
+  link.hidden=false;
 }
 
 function syncFormat(){qualityWrap.hidden=selected('format')!=='video';}
@@ -87,7 +99,7 @@ stopBtn.addEventListener('click',async()=>{
 form.addEventListener('submit',async e=>{
   e.preventDefault();
   if(busy)return;
-  clearError();readyCard.hidden=true;cancelledByUser=false;jobId='';
+  clearError();readyCard.hidden=true;$('ready-save').hidden=true;cancelledByUser=false;jobId='';
   const url=urlInput.value.trim();
   if(!url){showError('Paste a YouTube video URL first.');urlInput.focus();return;}
   const format=selected('format')||'mp3';
@@ -104,6 +116,7 @@ form.addEventListener('submit',async e=>{
     jobId=job.id;
     const ready=await waitForJob(jobId);
     if(cancelledByUser)return;
+    showSaveFallback(ready);
     if(saveDirectory)await saveToChosenDirectory(ready);else startNativeDownload();
     progressCard.hidden=true;
     $('ready-name').textContent=ready.file_name||'Your file is ready';
