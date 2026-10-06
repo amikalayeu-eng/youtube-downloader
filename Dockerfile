@@ -48,7 +48,7 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && cp /tmp/direct_override.py /app/app/direct.py \
     && rm -f /tmp/direct_override.py \
     && sed -i 's/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/direct.py \
-    && python -c 'from pathlib import Path; p=Path("/app/app/direct.py"); s=p.read_text(); old="        \"-f\", \"bestaudio/best\",\n"; new="        \"-f\", \"18/bestaudio/best\",\n        \"--extractor-args\", \"youtube:player_client=android\",\n"; assert old in s; p.write_text(s.replace(old,new,1))' \
+    && python -c 'from pathlib import Path; p=Path("/app/app/direct.py"); s=p.read_text(); old="        \"-f\", \"bestaudio/best\",\n"; new="        \"-f\", \"bestaudio/best\",\n        \"--cache-dir\", \"/tmp/yt-dlp-cache\",\n        \"--plugin-dirs\", \"/usr/local/share/yt-dlp-plugins\",\n        \"--extractor-args\", \"youtube:player_client=mweb;fetch_pot=always;formats=missing_pot\",\n        \"--extractor-args\", \"youtubepot-bgutilhttp:base_url=http://bgutil-provider.railway.internal:4416\",\n"; assert old in s; p.write_text(s.replace(old,new,1))' \
     && python -c 'from pathlib import Path; p=Path("/app/app/direct.py"); s=p.read_text(); old="        *dl.yt_dlp_base(),\n"; new="        settings.yt_dlp_path,\n        \"--ignore-config\",\n        \"--no-playlist\",\n        \"--no-overwrites\",\n        \"--no-colors\",\n        \"--socket-timeout\", \"30\",\n        \"--retries\", \"3\",\n"; assert old in s; p.write_text(s.replace(old,new,1))' \
     && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
@@ -60,8 +60,8 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && python -m compileall -q /app/app \
     && pip install --upgrade pip \
     && pip install -r requirements.txt \
-    && mkdir -p /tmp/audioera-jobs \
-    && chown -R nobody:nogroup /app /tmp/audioera-jobs
+    && mkdir -p /tmp/audioera-jobs /tmp/yt-dlp-cache \
+    && chown -R nobody:nogroup /app /tmp/audioera-jobs /tmp/yt-dlp-cache
 USER nobody
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini","--"]
