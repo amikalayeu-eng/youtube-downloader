@@ -49,6 +49,7 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && rm -f /tmp/direct_override.py \
     && sed -i 's/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/direct.py \
     && python -c 'from pathlib import Path; p=Path("/app/app/direct.py"); s=p.read_text(); old="        \"-f\", \"bestaudio/best\",\n"; new="        \"-f\", \"18/bestaudio/best\",\n        \"--extractor-args\", \"youtube:player_client=android\",\n"; assert old in s; p.write_text(s.replace(old,new,1))' \
+    && python -c 'from pathlib import Path; p=Path("/app/app/direct.py"); s=p.read_text(); old="        *dl.yt_dlp_base(),\n"; new="        settings.yt_dlp_path,\n        \"--ignore-config\",\n        \"--no-playlist\",\n        \"--no-overwrites\",\n        \"--no-colors\",\n        \"--socket-timeout\", \"30\",\n        \"--retries\", \"3\",\n"; assert old in s; p.write_text(s.replace(old,new,1))' \
     && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
