@@ -33,11 +33,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && /usr/local/bin/yt-dlp --version
 WORKDIR /app
 COPY bundle/ /tmp/bundle/
+COPY runtime_patch/ /tmp/runtime_patch/
 COPY frontend_override/ /tmp/frontend_override/
 COPY direct_override.py /tmp/direct_override.py
 RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
+    && python -c 'import base64,glob,pathlib; d="".join(pathlib.Path(p).read_text() for p in sorted(glob.glob("/tmp/runtime_patch/part*.txt"))); pathlib.Path("/tmp/runtime_patch.tar.gz").write_bytes(base64.b64decode(d))' \
+    && echo "a24e675c2340d21e33c57bb0acb5cd22b1ee012c82aa167b0428ebc0b7797ff0  /tmp/runtime_patch.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/runtime_patch.tar.gz -C /app \
+    && rm -rf /tmp/runtime_patch /tmp/runtime_patch.tar.gz \
     && cp -a /tmp/frontend_override/. /app/frontend/ \
     && rm -rf /tmp/frontend_override \
     && cp /tmp/direct_override.py /app/app/direct.py \
