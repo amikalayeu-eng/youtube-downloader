@@ -34,16 +34,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY bundle/ /tmp/bundle/
 COPY frontend_override/ /tmp/frontend_override/
-COPY runtime_patch/ /tmp/runtime_patch/
+COPY direct_override.py /tmp/direct_override.py
 RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && tar -xzf /tmp/source.tar.gz -C /app \
     && rm -rf /tmp/source.tar.gz /tmp/bundle \
     && cp -a /tmp/frontend_override/. /app/frontend/ \
     && rm -rf /tmp/frontend_override \
-    && python -c 'import base64,glob,pathlib; d="".join(pathlib.Path(p).read_text() for p in sorted(glob.glob("/tmp/runtime_patch/part*.txt"))); pathlib.Path("/tmp/runtime_patch.tar.gz").write_bytes(base64.b64decode(d))' \
-    && echo "a24e675c2340d21e33c57bb0acb5cd22b1ee012c82aa167b0428ebc0b7797ff0  /tmp/runtime_patch.tar.gz" | sha256sum -c - \
-    && tar -xzf /tmp/runtime_patch.tar.gz -C /app \
-    && rm -rf /tmp/runtime_patch /tmp/runtime_patch.tar.gz \
+    && cp /tmp/direct_override.py /app/app/direct.py \
+    && rm -f /tmp/direct_override.py \
     && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
@@ -59,4 +57,4 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
 USER nobody
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["uvicorn","app.api:app","--host","0.0.0.0","--port","8080","--workers","2","--proxy-headers"]
+CMD ["uvicorn","app.direct:app","--host","0.0.0.0","--port","8080","--workers","2","--proxy-headers"]
