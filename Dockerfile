@@ -54,6 +54,7 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
     && python -c 'from pathlib import Path; p=Path("/app/app/downloader.py"); s=p.read_text(); old="    if settings.yt_dlp_extractor_args:\n        args += [\"--extractor-args\", settings.yt_dlp_extractor_args]\n"; new="    if settings.yt_dlp_extractor_args:\n        for extractor_arg in settings.yt_dlp_extractor_args.split(\"||\"):\n            extractor_arg = extractor_arg.strip()\n            if extractor_arg:\n                args += [\"--extractor-args\", extractor_arg]\n"; assert old in s; p.write_text(s.replace(old,new))' \
+    && sed -i 's/"-preset", "medium"/"-preset", "veryfast", "-threads", "2"/g' /app/app/downloader.py \
     && sed -i 's/"processing_time", "process", "exit_status"/"processing_time", "process_name", "exit_status"/g' /app/app/logging_json.py \
     && sed -i '/^import signal$/a import socket' /app/app/worker_runner.py \
     && sed -i 's/name=f"{queue_name}-{os.getpid()}"/name=f"{queue_name}-{socket.gethostname()}-{os.getpid()}"/g' /app/app/worker_runner.py \
