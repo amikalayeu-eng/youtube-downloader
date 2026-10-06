@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import json
+import math
+import queue
+import re
 import shutil
+import threading
 import time
+from pathlib import Path
 
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -9,10 +15,11 @@ from pydantic import BaseModel, Field
 from rq import Queue
 
 from . import api as base
+from . import downloader as dl
 from .config import settings
-from .downloader import Cancelled, analyze_url, download_media
+from .downloader import Cancelled
 from .redis_client import get_hash, redis_conn, rq_conn, set_hash, update_hash
-from .security import new_public_id, normalize_youtube_url, privacy_hash
+from .security import new_public_id, normalize_youtube_url, privacy_hash, safe_filename, safe_thumbnail
 from .storage import storage
 
 app = base.app
@@ -37,8 +44,8 @@ def _release_active(job_id: str) -> None:
         r.srem(f"audioera:active:ip:{job['ip_hash']}", job_id)
 
 
-@app.post("/api/download", status_code=202)
-def create_direct_download(payload: DirectDownloadIn, request: Request, response: Response):
+@app.post("/api/fast-download", status_code=202)
+def create_fast_download(payload: DirectDownloadIn, request: Request, response: Response):
     base._disk_guard()
     _, session_hash = base._session(request, response)
     ip_hash = privacy_hash(base._client_ip(request), settings.privacy_salt)
@@ -73,7 +80,6 @@ def create_direct_download(payload: DirectDownloadIn, request: Request, response
             raise HTTPException(429, "This browser already has the maximum number of active downloads.")
         if base._prune_active("ip", ip_hash) >= settings.ip_concurrent_jobs:
             raise HTTPException(429, "This network already has the maximum number of active downloads.")
-
         set_hash("job", job_id, {
             "status": "queued", "created_at": int(time.time()), "updated_at": int(time.time()),
             "stage": "Preparing", "progress": "", "url": canonical,
@@ -86,7 +92,7 @@ def create_direct_download(payload: DirectDownloadIn, request: Request, response
         r.expire(f"audioera:active:ip:{ip_hash}", settings.job_timeout_seconds + settings.file_ttl_seconds)
         try:
             q.enqueue(
-                "app.direct.direct_download_task", job_id, canonical, kind, quality,
+                "app.direct.fast_download_task", job_id, canonical, kind, quality,
                 job_id=job_id, job_timeout=settings.job_timeout_seconds + 120,
                 result_ttl=60, failure_ttl=60,
             )
@@ -99,12 +105,135 @@ def create_direct_download(payload: DirectDownloadIn, request: Request, response
             admission.release()
         except Exception:
             pass
-
     r.incr("audioera:metric:download_submitted")
     return {"id": job_id, "status": "queued"}
 
 
-def direct_download_task(job_id: str, url: str, kind: str, quality: str) -> dict:
+def _audio_source_and_metadata(url: str, job_id: str, stage: Path, progress, deadline: float) -> tuple[Path, dict]:
+    cmd = [
+        *dl.yt_dlp_base(),
+        "-f", "bestaudio/best",
+        "--max-filesize", str(settings.max_source_file_size_bytes),
+        "--match-filter", f"!is_live & duration <= {settings.max_duration_seconds}",
+        "--write-info-json", "--no-write-playlist-metafiles", "--no-write-comments",
+        "--newline", "--progress",
+        "--progress-template", "download:PROGRESS %(progress._percent_str)s",
+        "-o", str(stage / "source.%(ext)s"),
+        "--", url,
+    ]
+    proc = dl._popen([str(x) for x in cmd])
+    out_q: queue.Queue[str] = queue.Queue()
+    stderr_parts: list[str] = []
+    stdout_done = threading.Event()
+    stderr_done = threading.Event()
+
+    def read_stdout() -> None:
+        try:
+            if proc.stdout:
+                for line in proc.stdout:
+                    out_q.put(line)
+        finally:
+            stdout_done.set()
+
+    def read_stderr() -> None:
+        try:
+            if proc.stderr:
+                tail = ""
+                while True:
+                    chunk = proc.stderr.read(4096)
+                    if not chunk:
+                        break
+                    tail = (tail + chunk)[-32768:]
+                stderr_parts.append(tail)
+        finally:
+            stderr_done.set()
+
+    threading.Thread(target=read_stdout, daemon=True).start()
+    threading.Thread(target=read_stderr, daemon=True).start()
+    try:
+        while True:
+            if redis_conn().get(f"audioera:cancel:{job_id}"):
+                dl._stop(proc)
+                raise Cancelled("The operation was cancelled.")
+            if time.monotonic() >= deadline:
+                dl._stop(proc)
+                raise dl.DownloadError("Job processing timeout exceeded.")
+            try:
+                line = out_q.get(timeout=0.2)
+            except queue.Empty:
+                line = ""
+            if line.startswith("PROGRESS "):
+                pct = line[9:].strip().replace("%", "").strip()
+                if re.fullmatch(r"\d+(?:\.\d+)?", pct):
+                    progress("downloading", "Downloading audio", pct)
+            if proc.poll() is not None and stdout_done.is_set() and out_q.empty():
+                break
+        stderr_done.wait(2)
+        stderr = "".join(stderr_parts)
+        exit_code = int(proc.returncode or 0)
+        dl.log.info("process_exit", extra={"job_id": job_id, "process": "yt-dlp", "exit_status": exit_code})
+        if exit_code:
+            raise dl.DownloadError(dl._friendly_process_error(stderr))
+    finally:
+        dl._stop(proc)
+        if proc.stdout:
+            proc.stdout.close()
+        if proc.stderr:
+            proc.stderr.close()
+
+    media_files = [
+        p for p in stage.iterdir()
+        if p.is_file() and p.name.startswith("source.")
+        and not p.name.endswith((".part", ".ytdl", ".info.json"))
+    ]
+    info_files = [p for p in stage.iterdir() if p.is_file() and p.name.startswith("source.") and p.name.endswith(".info.json")]
+    if not media_files:
+        raise dl.DownloadError("YouTube did not produce the requested media stream.")
+    if not info_files:
+        raise dl.DownloadError("YouTube did not return media metadata.")
+    source = max(media_files, key=lambda p: p.stat().st_size)
+    if source.stat().st_size > settings.max_source_file_size_bytes:
+        raise dl.DownloadError("The source media exceeds the configured size limit.")
+    try:
+        info = json.loads(max(info_files, key=lambda p: p.stat().st_mtime).read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise dl.DownloadError("YouTube metadata response was invalid.") from exc
+    if info.get("is_live"):
+        raise dl.DownloadError("Live streams are not supported. Wait until the stream has ended.")
+    duration = float(info.get("duration") or 0)
+    if not math.isfinite(duration) or duration <= 0:
+        raise dl.DownloadError("The video duration could not be verified.")
+    if duration > settings.max_duration_seconds:
+        raise dl.DownloadError(f"Video is longer than the {settings.max_duration_seconds // 60}-minute limit.")
+    title = str(info.get("title") or info.get("id") or "YouTube Media")
+    return source, {
+        "url": normalize_youtube_url(url), "video_id": str(info.get("id") or ""),
+        "title": title, "safe_title": safe_filename(title), "duration": duration,
+        "thumbnail": safe_thumbnail(info.get("thumbnail")),
+    }
+
+
+def _audio_one_pass(url: str, kind: str, job_id: str, progress) -> tuple[Path, str, dict, dict]:
+    dl.ensure_disk_capacity(kind)
+    deadline = time.monotonic() + settings.job_timeout_seconds
+    work_parent = settings.job_root / "work"
+    work_parent.mkdir(parents=True, exist_ok=True)
+    job_dir = work_parent / job_id
+    job_dir.mkdir(parents=False, exist_ok=False)
+    (job_dir / ".expires").write_text(str(int(time.time()) + settings.job_timeout_seconds + 300), encoding="ascii")
+    source, metadata = _audio_source_and_metadata(url, job_id, job_dir, progress, deadline)
+    final = job_dir / f"final.{kind}"
+    progress("processing", f"Converting {kind.upper()}", "")
+    with dl.FfmpegSlot(job_id, deadline):
+        dl.run_cancellable(dl.audio_ffmpeg_command(source, final, kind), job_id=job_id, timeout=dl._remaining(deadline))
+    progress("validating", f"Validating {kind.upper()}", "")
+    details = dl.validate_audio(final, kind, job_id=job_id, timeout=dl._remaining(deadline, 120))
+    if final.stat().st_size > settings.max_file_size_bytes:
+        raise dl.DownloadError("The finished file exceeds the configured size limit.")
+    return final, safe_filename(metadata["title"]) + f".{kind}", details, metadata
+
+
+def fast_download_task(job_id: str, url: str, kind: str, quality: str) -> dict:
     r = redis_conn()
 
     def cancelled() -> bool:
@@ -114,73 +243,48 @@ def direct_download_task(job_id: str, url: str, kind: str, quality: str) -> dict
     def progress(state: str, label: str, percent: str) -> None:
         if cancelled():
             raise Cancelled("The download was cancelled.")
-        update_hash(
-            "job", job_id, ttl=settings.file_ttl_seconds + settings.job_timeout_seconds,
-            status=state, updated_at=_now(), stage=label, progress=percent,
-        )
+        update_hash("job", job_id, ttl=settings.file_ttl_seconds + settings.job_timeout_seconds,
+                    status=state, updated_at=_now(), stage=label, progress=percent)
 
     try:
-        if cancelled():
-            raise Cancelled("The download was cancelled.")
         progress("processing", "Preparing", "")
-
         if settings.load_test_fake_media:
-            metadata = {
-                "url": normalize_youtube_url(url), "video_id": "test",
-                "title": "Load Test Video", "safe_title": "Load Test Video",
-                "duration": 120.0, "thumbnail": "",
-            }
-        else:
-            metadata = analyze_url(url, job_id=job_id)
-
-        update_hash(
-            "job", job_id, ttl=settings.file_ttl_seconds + settings.job_timeout_seconds,
-            title=metadata["title"], duration=metadata["duration"], thumbnail=metadata["thumbnail"],
-            video_id=metadata["video_id"], url=metadata["url"], updated_at=_now(),
-        )
-        if cancelled():
-            raise Cancelled("The download was cancelled.")
-
-        if settings.load_test_fake_media:
-            progress("downloading", "Downloading", "50")
+            metadata = {"url": normalize_youtube_url(url), "video_id": "test", "title": "Load Test Video", "duration": 120.0, "thumbnail": ""}
             work = settings.job_root / "work" / job_id
             work.mkdir(parents=True, exist_ok=True)
             ext = ".mp4" if kind == "video" else f".{kind}"
             final = work / ("final" + ext)
             final.write_bytes(("LOAD TEST " + job_id).encode())
             filename, details = "Load Test Video" + ext, {"synthetic": True}
+        elif kind in {"mp3", "wav"}:
+            final, filename, details, metadata = _audio_one_pass(url, kind, job_id, progress)
         else:
-            final, filename, details = download_media(
-                url=metadata["url"], title=metadata["title"], duration=float(metadata["duration"]),
-                kind=kind, quality=quality, job_id=job_id, progress=progress,
-            )
+            metadata = dl.analyze_url(url, job_id=job_id)
+            final, filename, details = dl.download_media(url=metadata["url"], title=metadata["title"], duration=float(metadata["duration"]), kind=kind, quality=quality, job_id=job_id, progress=progress)
 
+        update_hash("job", job_id, ttl=settings.file_ttl_seconds + settings.job_timeout_seconds,
+                    title=metadata["title"], duration=metadata["duration"], thumbnail=metadata.get("thumbnail", ""),
+                    video_id=metadata.get("video_id", ""), url=metadata["url"], updated_at=_now())
         if cancelled():
             raise Cancelled("The download was cancelled.")
         result_storage = storage()
+        progress("processing", "Saving", "")
         key, size = result_storage.put(job_id, final, filename)
         if cancelled():
             result_storage.delete(key)
             raise Cancelled("The download was cancelled.")
-
-        update_hash(
-            "job", job_id, ttl=settings.file_ttl_seconds, status="ready", updated_at=_now(),
-            ready_at=_now(), stage="Ready", progress="", file_name=filename,
-            storage_key=key, output_size=size, media_details=details,
-        )
+        update_hash("job", job_id, ttl=settings.file_ttl_seconds, status="ready", updated_at=_now(),
+                    ready_at=_now(), stage="Ready", progress="", file_name=filename,
+                    storage_key=key, output_size=size, media_details=details)
         r.incr("audioera:metric:download_success")
         return {"file_name": filename, "storage_key": key, "size": size}
     except Cancelled:
-        update_hash(
-            "job", job_id, ttl=settings.file_ttl_seconds, status="cancelled", updated_at=_now(),
-            stage="Cancelled", progress="", error="The download was cancelled.", error_category="Cancelled",
-        )
+        update_hash("job", job_id, ttl=settings.file_ttl_seconds, status="cancelled", updated_at=_now(),
+                    stage="Cancelled", progress="", error="The download was cancelled.", error_category="Cancelled")
         return {"cancelled": True}
     except Exception as exc:
-        update_hash(
-            "job", job_id, ttl=settings.file_ttl_seconds, status="failed", updated_at=_now(),
-            stage="Failed", progress="", error=str(exc)[:1200], error_category=type(exc).__name__,
-        )
+        update_hash("job", job_id, ttl=settings.file_ttl_seconds, status="failed", updated_at=_now(),
+                    stage="Failed", progress="", error=str(exc)[:1200], error_category=type(exc).__name__)
         r.incr("audioera:metric:download_failed")
         raise
     finally:
