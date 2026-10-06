@@ -19,7 +19,7 @@ function renderProgress(data){
   const raw=String(data.progress??'').trim(),pct=Number(raw),real=raw!==''&&Number.isFinite(pct)&&pct>=0&&pct<=100;
   const stage=String(data.stage||'');
   let label='Finishing';
-  if(status==='queued')label='Starting';
+  if(status==='queued'||stage==='Preparing')label='Starting';
   else if(real)label='Downloading';
   else if(stage==='Saving')label='Saving';
   $('state-label').textContent=label;
