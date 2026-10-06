@@ -11,8 +11,9 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="__PUBLIC_BASE_URL__/">
   <meta name="theme-color" content="#041518">
-  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml">
+  <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/styles.css?v=v1-restored">
+  <link rel="stylesheet" href="/assets/fast.css?v=2">
 </head>
 <body>
   <main class="page-shell">
@@ -34,22 +35,22 @@
           <h2 id="format-title" class="section-label">Format</h2>
           <div class="segmented" role="radiogroup" aria-label="Output format">
             <input class="choice-radio" id="format-mp3" name="format" type="radio" value="mp3" checked>
-            <label class="segment" for="format-mp3">MP3</label>
+            <label class="segment" for="format-mp3" data-format="mp3">MP3</label>
             <input class="choice-radio" id="format-wav" name="format" type="radio" value="wav">
-            <label class="segment" for="format-wav">WAV</label>
+            <label class="segment" for="format-wav" data-format="wav">WAV</label>
             <input class="choice-radio" id="format-video" name="format" type="radio" value="video">
-            <label class="segment" for="format-video">VIDEO</label>
+            <label class="segment" for="format-video" data-format="video">VIDEO</label>
           </div>
 
           <div id="quality-wrap" class="quality-wrap" hidden>
             <span class="section-label">Video quality</span>
             <div class="quality-grid" role="radiogroup" aria-label="Video quality">
               <input class="choice-radio" id="quality-low" name="quality" type="radio" value="low">
-              <label class="quality" for="quality-low"><strong>480p</strong></label>
+              <label class="quality" for="quality-low" data-quality="low"><strong>480p</strong></label>
               <input class="choice-radio" id="quality-medium" name="quality" type="radio" value="medium">
-              <label class="quality" for="quality-medium"><strong>720p</strong></label>
+              <label class="quality" for="quality-medium" data-quality="medium"><strong>720p</strong></label>
               <input class="choice-radio" id="quality-maximum" name="quality" type="radio" value="maximum" checked>
-              <label class="quality" for="quality-maximum"><strong>Maximum</strong></label>
+              <label class="quality" for="quality-maximum" data-quality="maximum"><strong>Maximum</strong></label>
             </div>
           </div>
 
@@ -62,13 +63,14 @@
       <section id="progress-card" class="progress-card" aria-live="polite" hidden>
         <div class="progress-head">
           <div>
-            <span id="state-label" class="eyebrow">Queued</span>
-            <h2 id="stage-label">Waiting for a worker</h2>
+            <span id="state-label" class="eyebrow">Preparing</span>
+            <h2 id="stage-label">Preparing download</h2>
           </div>
           <span id="progress-number" class="progress-number"></span>
         </div>
         <div id="progress-track" class="progress-track" hidden><div id="progress-bar" class="progress-bar"></div></div>
         <p id="queue-copy" class="microcopy"></p>
+        <button id="stop-download" class="button button-secondary stop-download" type="button">Stop</button>
       </section>
 
       <section id="ready-card" class="ready-card restored-ready" hidden>
@@ -86,6 +88,6 @@
       <nav aria-label="Legal"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright / Contact</a></nav>
     </footer>
   </main>
-  <script src="/assets/app.js?v=v1-restored" defer></script>
+  <script src="/assets/app.js?v=fast-v2" defer></script>
 </body>
 </html>
