@@ -13,7 +13,7 @@
   <meta name="theme-color" content="#041518">
   <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/styles.css?v=v1-restored">
-  <link rel="stylesheet" href="/assets/fast.css?v=2">
+  <link rel="stylesheet" href="/assets/fast.css?v=3">
 </head>
 <body>
   <main class="page-shell">
@@ -63,8 +63,8 @@
       <section id="progress-card" class="progress-card" aria-live="polite" hidden>
         <div class="progress-head">
           <div>
-            <span id="state-label" class="eyebrow">Preparing</span>
-            <h2 id="stage-label">Preparing download</h2>
+            <span id="state-label" class="eyebrow">Starting</span>
+            <h2 id="stage-label">Starting</h2>
           </div>
           <span id="progress-number" class="progress-number"></span>
         </div>
@@ -79,6 +79,7 @@
           <span class="eyebrow">Ready</span>
           <h2 id="ready-name">Your file is ready</h2>
           <p id="ready-size" class="microcopy"></p>
+          <a id="ready-save" class="ready-save" href="#" download hidden>Save file</a>
         </div>
       </section>
     </section>
@@ -88,6 +89,6 @@
       <nav aria-label="Legal"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright / Contact</a></nav>
     </footer>
   </main>
-  <script src="/assets/app.js?v=fast-v2" defer></script>
+  <script src="/assets/app.js?v=fast-v3" defer></script>
 </body>
 </html>
