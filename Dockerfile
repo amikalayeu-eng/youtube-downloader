@@ -47,6 +47,7 @@ RUN cat /tmp/bundle/part*.txt | base64 -d > /tmp/source.tar.gz \
     && rm -rf /tmp/frontend_override \
     && cp /tmp/direct_override.py /app/app/direct.py \
     && rm -f /tmp/direct_override.py \
+    && sed -i 's/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/direct.py \
     && grep -RIl -i 'audioera' /app/frontend | xargs -r sed -i 's/AudioERA/YouTube Downloader/g; s/AUDIOERA/YOUTUBE DOWNLOADER/g; s/audioera/youtube-downloader/g' \
     && sed -i 's/"process": _process_name(args)/"process_name": _process_name(args)/g; s/"process": "yt-dlp"/"process_name": "yt-dlp"/g' /app/app/downloader.py \
     && sed -i '/"--js-runtimes", f"{runtime_name}:{runtime_exec}",/a\        "--remote-components", "ejs:github",' /app/app/downloader.py \
