@@ -103,21 +103,25 @@ async function saveToChosenDirectory(ready){
     await writable.close();
   }catch(err){try{await writable.abort();}catch{}throw err;}
 }
-function downloadUrl(){return `/api/jobs/${encodeURIComponent(jobId)}/file?download=1&t=${Date.now()}`;}
-function startNativeDownload(){
-  const frame=document.createElement('iframe');
-  frame.hidden=true;frame.src=downloadUrl();document.body.appendChild(frame);
-  setTimeout(()=>frame.remove(),60000);
+function downloadUrl(){return `/api/jobs/${encodeURIComponent(jobId)}/stream?download=1&t=${Date.now()}`;}
+function startNativeDownload(ready){
+  const link=document.createElement('a');
+  link.href=downloadUrl();
+  link.download=ready?.file_name||'download';
+  link.style.display='none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 async function saveReadyFile(){
   if(!readyData||!jobId)return;
   clearError();
   downloadBtn.disabled=true;downloadBtn.textContent='Saving…';downloadBtn.classList.add('save-ready');
   try{
-    if(saveDirectory)await saveToChosenDirectory(readyData);else startNativeDownload();
+    if(saveDirectory)await saveToChosenDirectory(readyData);else startNativeDownload(readyData);
     event('download_file',{format:selected('format')||'',quality:selected('format')==='video'?(selected('quality')||'maximum'):''});
   }catch(err){showError(err.message);}
-  finally{downloadBtn.disabled=false;downloadBtn.textContent='Save file';downloadBtn.classList.add('save-ready');}
+  finally{setTimeout(()=>{downloadBtn.disabled=false;downloadBtn.textContent='Save file';downloadBtn.classList.add('save-ready');},250);}
 }
 
 function syncFormat(){qualityWrap.hidden=selected('format')!=='video';resetReady();}
