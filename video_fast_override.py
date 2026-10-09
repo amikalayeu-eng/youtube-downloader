@@ -17,9 +17,9 @@ from .security import normalize_youtube_url, safe_filename, safe_thumbnail
 
 def _video_source_and_metadata(url: str, quality: str, job_id: str, stage: Path, progress, deadline: float) -> tuple[Path, dict, dict]:
     selector = {
-        "low": "bestvideo[height<=480]+bestaudio/best[height<=480]/best",
-        "medium": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
-        "maximum": "bestvideo+bestaudio/best",
+        "low": "bestvideo[vcodec^=avc1][height<=480]+bestaudio[acodec^=mp4a]/bestvideo[vcodec^=avc1][height<=480]+bestaudio/best[height<=480][ext=mp4]/best[height<=480]/best",
+        "medium": "bestvideo[vcodec^=avc1][height<=720]+bestaudio[acodec^=mp4a]/bestvideo[vcodec^=avc1][height<=720]+bestaudio/best[height<=720][ext=mp4]/best[height<=720]/best",
+        "maximum": "bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[vcodec^=avc1]+bestaudio/best[ext=mp4][vcodec^=avc1]/bestvideo+bestaudio/best",
     }[quality]
     cmd = [
         settings.yt_dlp_path,
