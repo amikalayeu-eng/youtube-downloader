@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" -o /usr/local/bin/yt-dlp \
     && echo "${YT_DLP_SHA256}  /usr/local/bin/yt-dlp" | sha256sum -c - \
     && chmod 0755 /usr/local/bin/yt-dlp \
+    && printf '#!/bin/sh\nexec /usr/local/bin/yt-dlp --proxy socks5h://warp-proxy.railway.internal:9091 "$@"\n' > /usr/local/bin/yt-dlp-proxy \
+    && chmod 0755 /usr/local/bin/yt-dlp-proxy \
     && mkdir -p /usr/local/share/yt-dlp-plugins \
     && curl -fsSL "https://github.com/Brainicism/bgutil-ytdlp-pot-provider/releases/download/${BGUTIL_VERSION}/bgutil-ytdlp-pot-provider.zip" -o /usr/local/share/yt-dlp-plugins/bgutil-ytdlp-pot-provider.zip \
     && echo "${BGUTIL_SHA256}  /usr/local/share/yt-dlp-plugins/bgutil-ytdlp-pot-provider.zip" | sha256sum -c - \
