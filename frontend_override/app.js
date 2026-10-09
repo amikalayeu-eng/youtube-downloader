@@ -79,46 +79,14 @@ async function waitForJob(id){
   }
 }
 
-async function chooseDirectoryIfSupported(){
-  if(!('showDirectoryPicker' in window))return null;
-  try{return await window.showDirectoryPicker({mode:'readwrite'});}catch(err){if(err&&err.name==='AbortError')return false;throw err;}
-}
-async function saveToChosenDirectory(ready){
-  const response=await fetch(`/api/jobs/${encodeURIComponent(jobId)}/stream`,{credentials:'same-origin'});
-  if(!response.ok)throw new Error(`Could not save the file (${response.status}).`);
-  const fileHandle=await saveDirectory.getFileHandle(ready.file_name||'download',{create:true});
-  const writable=await fileHandle.createWritable();
-  try{
-    if(response.body&&response.body.getReader){
-      const reader=response.body.getReader();
-      let received=0,total=Number(response.headers.get('content-length')||ready.output_size||0);
-      for(;;){
-        const {done,value}=await reader.read();
-        if(done)break;
-        await writable.write(value);
-        received+=value.byteLength;
-        if(total>0){const pct=Math.min(100,received/total*100);setVisualProgress('Saving',pct);}
-      }
-    }else await writable.write(await response.blob());
-    await writable.close();
-  }catch(err){try{await writable.abort();}catch{}throw err;}
-}
 function downloadUrl(){return `/api/jobs/${encodeURIComponent(jobId)}/stream?download=1&t=${Date.now()}`;}
-function startNativeDownload(ready){
-  const link=document.createElement('a');
-  link.href=downloadUrl();
-  link.download=ready?.file_name||'download';
-  link.style.display='none';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
+function startNativeDownload(){window.location.assign(downloadUrl());}
 async function saveReadyFile(){
   if(!readyData||!jobId)return;
   clearError();
   downloadBtn.disabled=true;downloadBtn.textContent='Saving…';downloadBtn.classList.add('save-ready');
   try{
-    if(saveDirectory)await saveToChosenDirectory(readyData);else startNativeDownload(readyData);
+    startNativeDownload();
     event('download_file',{format:selected('format')||'',quality:selected('format')==='video'?(selected('quality')||'maximum'):''});
   }catch(err){showError(err.message);}
   finally{setTimeout(()=>{downloadBtn.disabled=false;downloadBtn.textContent='Save file';downloadBtn.classList.add('save-ready');},250);}
@@ -146,11 +114,7 @@ form.addEventListener('submit',async e=>{
   if(!url){showError('Paste a YouTube video URL first.');urlInput.focus();return;}
   const format=selected('format')||'mp3';
   const quality=format==='video'?(selected('quality')||'maximum'):'maximum';
-
-  let picked=null;
-  try{picked=await chooseDirectoryIfSupported();}catch(err){showError(err.message);return;}
-  if(picked===false)return;
-  saveDirectory=picked;
+  saveDirectory=null;
 
   setBusy(true);progressCard.hidden=false;renderProgress({status:'queued'});event('download_start',{format,quality:format==='video'?quality:''});
   try{
