@@ -1,4 +1,4 @@
-FROM python:3.13.13-slim-bookworm
+FROM public.ecr.aws/docker/library/python:3.13.13-slim-bookworm
 ARG YT_DLP_VERSION=2026.08.19
 ARG YT_DLP_SHA256=1fa6733c37ea6fb51c99ad8fe785e7b7e5f3246c9b980230329d4fb72ed8d4d6
 ARG BGUTIL_VERSION=2.0.2
