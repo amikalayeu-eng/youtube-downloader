@@ -1,1 +1,2 @@
-.stop-download{margin-top:16px;min-width:120px}.progress-card .stop-download{display:inline-flex}.progress-card .stop-download[hidden]{display:none!important}.ready-save{display:inline-flex;margin-top:8px;color:#e7c95f;font-weight:700;text-decoration:none}.ready-save:hover{text-decoration:underline}.ready-save[hidden]{display:none!important}
+.stop-download{margin-top:16px;min-width:120px}.progress-card .stop-download{display:inline-flex}.progress-card .stop-download[hidden]{display:none!important}
+.download-cta.save-ready{border-color:#e0ba45;background:#5b4918;color:#fff0af;box-shadow:0 0 0 1px #edc24e44,0 0 28px #edc24e24}.download-cta.save-ready:hover:not(:disabled){border-color:#f0cc62;background:#6a551c;box-shadow:0 0 0 1px #edc24e66,0 0 34px #edc24e32}
